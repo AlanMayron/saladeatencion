@@ -41,10 +41,10 @@
 @section('content')
 <style>
   .room-card { width: 180px; overflow: hidden; } /* alto auto */
-  .room-card .card-body{ padding:.6rem; display:flex; flex-direction:column; gap:.45rem; }
+  .room-card .card-body { padding:.6rem; display:flex; flex-direction:column; gap:.45rem; }
 
   .room-head  { display:flex; align-items:flex-start; justify-content:space-between; gap:.4rem; }
-  .room-title { min-width:0; } /* permite que text-truncate funcione */
+  .room-title { min-width:0; }  /* permite truncar */
   .room-name  { font-weight:600; }
   .room-line  { font-size:.8rem; color:#6c757d; }
 
@@ -64,50 +64,52 @@
   @if ($rooms->isEmpty())
     <div class="alert alert-secondary">Sin resultados.</div>
   @else
-    <div class="d-flex flex-wrap gap-3">
-      @foreach ($rooms as $room)
-        <div class="card room-card">
-  <div class="card-body">
-<div class="room-head">
-  <div class="room-title">
-    <div class="room-name text-truncate">{{ $room->name }}</div>
-    <div class="room-line">Cap: {{ $room->capacity }} · Ocup: {{ $room->occupancy }}</div>
-  </div>
-  @php $map = ['disponible'=>'success','ocupada'=>'danger','mantenimiento'=>'warning']; @endphp
-  <span class="badge badge-tight text-bg-{{ $map[$room->status] ?? 'secondary' }}">
-    {{ ucfirst($room->status) }}
-  </span>
+   <div class="d-flex flex-wrap gap-3">
+  @foreach ($rooms as $room)
+    @php
+      $map = ['disponible' => 'success', 'ocupada' => 'danger', 'mantenimiento' => 'warning'];
+    @endphp
+
+    <div class="card room-card">
+      <div class="card-body">
+        {{-- Cabecera: nombre + badge --}}
+        <div class="room-head">
+          <div class="room-title">
+            <div class="room-name text-truncate">{{ $room->name }}</div>
+            <div class="room-line">Cap: {{ $room->capacity }} · Ocup: {{ $room->occupancy }}</div>
+          </div>
+          <span class="badge badge-tight text-bg-{{ $map[$room->status] ?? 'secondary' }}">
+            {{ ucfirst($room->status) }}
+          </span>
+        </div>
+
+        {{-- Personitas solo visual --}}
+        <div class="person-icons">
+          @for ($i = 1; $i <= $room->capacity; $i++)
+            <i class="fa-solid fa-user person-icon {{ $i <= $room->occupancy ? 'text-danger' : 'text-success' }}"
+               title="{{ $i <= $room->occupancy ? 'Ocupado' : 'Disponible' }}"></i>
+          @endfor
+        </div>
+
+        {{-- Acciones --}}
+        <div class="d-grid gap-1 mt-1">
+          <a class="btn btn-outline-secondary btn-sm" href="{{ route('rooms.edit', $room) }}">
+            <i class="fa-solid fa-pen-to-square me-1"></i> Editar
+          </a>
+          <form method="POST" action="{{ route('rooms.destroy', $room) }}"
+                onsubmit="return confirm('¿Eliminar sala &quot;{{ $room->name }}&quot;?');">
+            @csrf
+            @method('DELETE')
+            <button class="btn btn-outline-danger btn-sm w-100">
+              <i class="fa-solid fa-trash-can me-1"></i> Eliminar
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  @endforeach
 </div>
 
-              @php $map = ['disponible'=>'success','ocupada'=>'danger','mantenimiento'=>'warning']; @endphp
-              <span class="badge badge-tight text-bg-{{ $map[$room->status] ?? 'secondary' }} room-badge">
-                {{ ucfirst($room->status) }}
-              </span>
-            </div>
-
-              <div class="person-icons">
-      @for ($i = 1; $i <= $room->capacity; $i++)
-        <i class="fa-solid fa-user person-icon {{ $i <= $room->occupancy ? 'text-danger' : 'text-success' }}"
-           title="{{ $i <= $room->occupancy ? 'Ocupado' : 'Disponible' }}"></i>
-      @endfor
-    </div>
-
-            <div class="d-grid gap-1 mt-1">
-      <a class="btn btn-outline-secondary btn-sm" href="{{ route('rooms.edit', $room) }}">
-        <i class="fa-solid fa-pen-to-square me-1"></i> Editar
-      </a>
-      <form method="POST" action="{{ route('rooms.destroy', $room) }}"
-            onsubmit="return confirm('¿Eliminar sala \"{{ $room->name }}\"?');">
-        @csrf @method('DELETE')
-        <button class="btn btn-outline-danger btn-sm w-100">
-          <i class="fa-solid fa-trash-can me-1"></i> Eliminar
-        </button>
-      </form>
-    </div>
-  </div>
-</div>
-      @endforeach
-    </div>
 
     <div class="mt-3">
       {{ $rooms->links() }}
