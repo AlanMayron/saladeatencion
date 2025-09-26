@@ -1,61 +1,116 @@
 @extends('layouts.app')
 
-@section('content')
-  <div class="card">
-    <div class="card-body">
-      <form class="row g-2 mb-3" method="GET" action="{{ route('rooms.index') }}">
-        <div class="col-sm-8 col-md-10">
-          <input name="q" value="{{ $q }}" class="form-control" placeholder="Buscar por nombre...">
-        </div>
-        <div class="col-sm-4 col-md-2 d-grid">
-          <button class="btn btn-primary">Buscar</button>
-        </div>
-      </form>
+@section('sidebar')
+  <form method="GET" action="{{ route('rooms.index') }}" class="mb-3">
+    <div class="mb-2">
+      <label class="form-label">Buscar por nombre</label>
+      <input name="q" value="{{ $q }}" class="form-control" placeholder="Ej: Sala A-101">
+    </div>
 
-      <div class="table-responsive">
-        <table class="table table-striped align-middle">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Capacidad</th>
-              <th>Estado</th>
-              <th class="text-end">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            @forelse ($rooms as $room)
-              <tr>
-                <td>{{ $room->name }}</td>
-                <td>{{ $room->capacity }}</td>
-                <td>
-                  @php
-                    $map = [
-                      'disponible' => 'success',
-                      'ocupada' => 'danger',
-                      'mantenimiento' => 'warning',
-                    ];
-                  @endphp
-                  <span class="badge text-bg-{{ $map[$room->status] ?? 'secondary' }}">
-                    {{ ucfirst($room->status) }}
-                  </span>
-                </td>
-                <td class="text-end">
-                  <a class="btn btn-sm btn-outline-secondary" href="{{ route('rooms.edit', $room) }}">Editar</a>
-                  <form action="{{ route('rooms.destroy', $room) }}" method="POST" class="d-inline"
-                        onsubmit="return confirm('¿Eliminar sala?');">
-                    @csrf @method('DELETE')
-                    <button class="btn btn-sm btn-outline-danger">Eliminar</button>
-                  </form>
-                </td>
-              </tr>
-            @empty
-              <tr><td colspan="4" class="text-center text-muted">Sin resultados</td></tr>
-            @endforelse
-          </tbody>
-        </table>
+    <div class="mb-2">
+      <label class="form-label">Resultados por página</label>
+      <select name="perPage" class="form-select">
+        @foreach([6,9,12,16,24,36] as $n)
+          <option value="{{ $n }}" @selected(($rooms->perPage() ?? 12) == $n)>{{ $n }}</option>
+        @endforeach
+      </select>
+    </div>
+
+    <button class="btn btn-primary w-100">Aplicar filtros</button>
+  </form>
+
+  @if ($rooms->lastPage() > 1)
+    <form method="GET" action="{{ route('rooms.index') }}" class="mb-3">
+      <input type="hidden" name="q" value="{{ $q }}">
+      <input type="hidden" name="perPage" value="{{ $rooms->perPage() }}">
+      <label class="form-label">Ir a página</label>
+      <div class="input-group">
+        <input type="number" min="1" max="{{ $rooms->lastPage() }}" name="page"
+               value="{{ $rooms->currentPage() }}" class="form-control">
+        <button class="btn btn-outline-secondary">Ir</button>
       </div>
+      <div class="form-text">Total: {{ $rooms->lastPage() }} páginas</div>
+    </form>
+  @endif
 
-      {{ $rooms->links() }}
+  <a href="{{ route('rooms.create') }}" class="btn btn-success w-100">
+    <i class="fa-solid fa-plus me-1"></i> Nueva sala
+  </a>
+@endsection
+
+@section('content')
+<style>
+  .room-card { width: 180px; overflow: hidden; } /* alto auto */
+  .room-card .card-body{ padding:.6rem; display:flex; flex-direction:column; gap:.45rem; }
+
+  .room-head  { display:flex; align-items:flex-start; justify-content:space-between; gap:.4rem; }
+  .room-title { min-width:0; } /* permite que text-truncate funcione */
+  .room-name  { font-weight:600; }
+  .room-line  { font-size:.8rem; color:#6c757d; }
+
+  .badge-tight { font-size:.72rem; line-height:1; padding:.25rem .35rem; white-space:nowrap; flex-shrink:0; }
+
+  .person-icons { display:flex; flex-wrap:wrap; gap:.2rem; }
+  .person-icon  { font-size:.95rem; }
+</style>
+
+
+
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <h5 class="mb-0">Salas</h5>
+    <span class="text-muted small">Mostrando {{ $rooms->count() }} de {{ $rooms->total() }}</span>
+  </div>
+
+  @if ($rooms->isEmpty())
+    <div class="alert alert-secondary">Sin resultados.</div>
+  @else
+    <div class="d-flex flex-wrap gap-3">
+      @foreach ($rooms as $room)
+        <div class="card room-card">
+  <div class="card-body">
+<div class="room-head">
+  <div class="room-title">
+    <div class="room-name text-truncate">{{ $room->name }}</div>
+    <div class="room-line">Cap: {{ $room->capacity }} · Ocup: {{ $room->occupancy }}</div>
+  </div>
+  @php $map = ['disponible'=>'success','ocupada'=>'danger','mantenimiento'=>'warning']; @endphp
+  <span class="badge badge-tight text-bg-{{ $map[$room->status] ?? 'secondary' }}">
+    {{ ucfirst($room->status) }}
+  </span>
+</div>
+
+              @php $map = ['disponible'=>'success','ocupada'=>'danger','mantenimiento'=>'warning']; @endphp
+              <span class="badge badge-tight text-bg-{{ $map[$room->status] ?? 'secondary' }} room-badge">
+                {{ ucfirst($room->status) }}
+              </span>
+            </div>
+
+              <div class="person-icons">
+      @for ($i = 1; $i <= $room->capacity; $i++)
+        <i class="fa-solid fa-user person-icon {{ $i <= $room->occupancy ? 'text-danger' : 'text-success' }}"
+           title="{{ $i <= $room->occupancy ? 'Ocupado' : 'Disponible' }}"></i>
+      @endfor
+    </div>
+
+            <div class="d-grid gap-1 mt-1">
+      <a class="btn btn-outline-secondary btn-sm" href="{{ route('rooms.edit', $room) }}">
+        <i class="fa-solid fa-pen-to-square me-1"></i> Editar
+      </a>
+      <form method="POST" action="{{ route('rooms.destroy', $room) }}"
+            onsubmit="return confirm('¿Eliminar sala \"{{ $room->name }}\"?');">
+        @csrf @method('DELETE')
+        <button class="btn btn-outline-danger btn-sm w-100">
+          <i class="fa-solid fa-trash-can me-1"></i> Eliminar
+        </button>
+      </form>
     </div>
   </div>
+</div>
+      @endforeach
+    </div>
+
+    <div class="mt-3">
+      {{ $rooms->links() }}
+    </div>
+  @endif
 @endsection
