@@ -16,7 +16,22 @@
       </select>
     </div>
 
+    <div class="mb-2">
+  <label class="form-label">Ubicación</label>
+  <select name="location" class="form-select">
+    <option value="">— Todas —</option>
+
+    @forelse($locations as $loc)
+      <option value="{{ $loc }}" @selected(($location ?? '') === $loc)>{{ $loc }}</option>
+    @empty
+      <option disabled>(sin ubicaciones)</option>
+    @endforelse
+  </select>
+</div>
+
     <button class="btn btn-primary w-100">Aplicar filtros</button>
+  </form>
+  <a class="btn btn-outline-secondary w-100 mt-2" href="{{ route('rooms.index') }}">Limpiar</a>
   </form>
 
   @if ($rooms->lastPage() > 1)

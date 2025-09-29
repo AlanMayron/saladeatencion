@@ -21,6 +21,25 @@
   <input name="name" value="{{ old('name', $room->name ?? '') }}" class="form-control">
   @error('name')<div class="text-danger small">{{ $message }}</div>@enderror
 </div>
+<div class="mb-3">
+  <label for="location" class="form-label">Ubicación</label>
+  <input
+    id="location"
+    name="location"
+    class="form-control @error('location') is-invalid @enderror"
+    value="{{ old('location', $room->location ?? '') }}"
+    list="location-options"
+    placeholder='Ej: "Piso 2, Área Norte"'
+  >
+  <datalist id="location-options">
+    @foreach($locations as $loc)
+      <option value="{{ $loc }}"></option>
+    @endforeach
+  </datalist>
+  @error('location')
+    <div class="invalid-feedback">{{ $message }}</div>
+  @enderror
+</div>
 
 <div class="row g-3">
   <div class="col-6">
