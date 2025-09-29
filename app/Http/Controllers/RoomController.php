@@ -9,24 +9,38 @@ use Illuminate\Validation\Rule;
 class RoomController extends Controller
 {
     public function index(Request $request)
-    {
-        $q = $request->input('q');
-        $perPage = (int) $request->input('perPage', 12);
-        $perPage = max(4, min($perPage, 48));
+{
+    $q        = $request->string('q')->toString();
+    $perPage  = (int) $request->input('perPage', 12);
+    $location = $request->input('location'); // puede venir null
 
-        $rooms = Room::query()
-            ->when($q, fn($query) => $query->where('name', 'ILIKE', "%{$q}%"))
-            ->orderBy('name')
-            ->paginate($perPage)
-            ->withQueryString();
+    // Para popular el <select> de ubicaciones:
+    $locations = \App\Models\Room::query()
+        ->whereNotNull('location')
+        ->distinct()
+        ->orderBy('location')
+        ->pluck('location');
 
-        return view('rooms.index', compact('rooms', 'q'));
-    }
+    $rooms = \App\Models\Room::query()
+        ->when($q, fn($qb) =>
+            $qb->where(function($qq){
+                $q = request('q');
+                $qq->where('name', 'like', "%{$q}%")
+                   ->orWhere('code', 'like', "%{$q}%"); // si tienes code u otro campo
+            })
+        )
+        ->location($location) // usando el scope de arriba
+        ->paginate($perPage)
+        ->withQueryString(); // mantiene filtros al paginar
+
+    return view('rooms.index', compact('rooms', 'q', 'perPage', 'location', 'locations'));
+}
 
     public function create()
-    {
-        return view('rooms.create');
-    }
+{
+    $locations = Room::whereNotNull('location')->distinct()->orderBy('location')->pluck('location');
+    return view('rooms.create', compact('locations'));
+}
 
 public function store(Request $request)
 {
@@ -35,6 +49,7 @@ public function store(Request $request)
         'capacity'  => ['required','integer','min:1'],
         'status'    => ['required', Rule::in(['disponible','ocupada','mantenimiento'])],
         'occupancy' => ['nullable','integer','min:0'],
+        'location' => ['nullable','string','max:120'],
     ]);
 
     $data['occupancy'] = min((int)($data['occupancy'] ?? 0), (int)$data['capacity']);
@@ -50,9 +65,10 @@ public function store(Request $request)
 
 
     public function edit(Room $room)
-    {
-        return view('rooms.edit', compact('room'));
-    }
+{
+    $locations = Room::whereNotNull('location')->distinct()->orderBy('location')->pluck('location');
+    return view('rooms.edit', compact('room', 'locations'));
+}
 
 public function update(Request $request, Room $room)
 {
@@ -61,6 +77,7 @@ public function update(Request $request, Room $room)
         'capacity'  => ['required','integer','min:1'],
         'status'    => ['required', Rule::in(['disponible','ocupada','mantenimiento'])],
         'occupancy' => ['nullable','integer','min:0'],
+        'location' => ['nullable','string','max:120'],
     ]);
 
     // Normaliza ocupación y ajusta estado (si no es mantenimiento)
@@ -107,4 +124,14 @@ public function update(Request $request, Room $room)
             ->route('rooms.index', ['q' => $room->name])
             ->with('ok', 'Ocupación actualizada.');
     }
+    public function scopeLocation($q, ?string $location)
+{
+    if (!$location) return $q;
+    // Si usarás select exacto:
+    return $q->where('location', $location);
+    
+    // Si prefieres búsqueda por subcadena:
+    // return $q->whereRaw('LOWER(location) LIKE ?', ['%'.mb_strtolower($location).'%']);
+}
+
 }
